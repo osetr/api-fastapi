@@ -62,7 +62,9 @@ def read_posts(user_login: str = None, limit:int = 100, db: Session = Depends(ge
     return posts
 
 @app.post("/users/{user_login}/posts/create/", response_model=schemas.NewPostCreated)
-def create_post(user_login: str = None, post: schemas.PostCreate = None, db: Session = Depends(get_db)):
+def create_post(user_login: str = None, current_user = Depends(crud.get_current_user), post: schemas.PostCreate = None, db: Session = Depends(get_db)):
+    if user_login != current_user["current_user"]:
+        raise HTTPException(status_code=400, detail="User_login not found")
     db_user = crud.get_user_by_login(db, user_login)
     if not db_user:
         raise HTTPException(status_code=400, detail="Faulty user_login")
@@ -71,7 +73,9 @@ def create_post(user_login: str = None, post: schemas.PostCreate = None, db: Ses
 
 
 @app.post("/users/{user_login}/likes/", response_model=schemas.Like)
-def like(user_login: str, post_id: int, db: Session = Depends(get_db)):
+def like(user_login: str, post_id: int, db: Session = Depends(get_db), current_user = Depends(crud.get_current_user)):
+    if user_login != current_user["current_user"]:
+        raise HTTPException(status_code=400, detail="User_login not found")
     db_user = crud.get_user_by_login(db, user_login)
     if not db_user:
         raise HTTPException(status_code=400, detail="Faulty user_login")
@@ -84,7 +88,9 @@ def like(user_login: str, post_id: int, db: Session = Depends(get_db)):
         raise HTTPException(status_code=409, detail="Probably like already exist")
 
 @app.delete("/users/{user_login}/unlikes/", response_model=schemas.Like)
-def unlike(user_login: str, post_id: int, db: Session = Depends(get_db)):
+def unlike(user_login: str, post_id: int, db: Session = Depends(get_db), current_user = Depends(crud.get_current_user)):
+    if user_login != current_user["current_user"]:
+        raise HTTPException(status_code=400, detail="User_login not found")
     db_user = crud.get_user_by_login(db, user_login)
     if not db_user:
         raise HTTPException(status_code=400, detail="Faulty user_login")
@@ -107,7 +113,9 @@ def likes_info(post_id: int, db: Session = Depends(get_db), date_from: str = "20
 
 
 @app.get("/users/{user_login}/last_request/")
-def read_posts(user_login: str = None, db: Session = Depends(get_db)):
+def read_posts(user_login: str = None, db: Session = Depends(get_db), current_user = Depends(crud.get_current_user)):
+    if user_login != current_user["current_user"]:
+        raise HTTPException(status_code=400, detail="User_login not found")
     db_user = crud.get_user_by_login(db, login=user_login)
     if not db_user:
         raise HTTPException(status_code=400, detail="User_login not found")
@@ -125,7 +133,12 @@ async def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends(
             headers={"WWW-Authenticate": "Bearer"},
         )
     access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+    print('REGIST')
     access_token = crud.create_access_token(
         data={"sub": user.login}, expires_delta=access_token_expires
     )
-    return {"access_token": access_token, "token_type": "bearer"}
+    return schemas.Token(access_token = access_token, token_type = "bearer")
+
+@app.get("/users/me/")
+async def read_users_me(current_user = Depends(crud.get_current_user)):
+    return current_user
