@@ -1,4 +1,4 @@
-from fastapi import Depends, FastAPI, HTTPException, status, Query
+from fastapi import Depends, FastAPI, HTTPException, status
 from sqlalchemy.orm import Session
 from datetime import datetime, timedelta
 import re
@@ -42,9 +42,10 @@ def create_user(user: schemas.UserCreate, db: Session = Depends(get_db)):
     return crud.create_user(db=db, user=user)
 
 @app.get("/users/{user_login}/last_request/", response_model=schemas.LastRequest)
-def read_posts(user_login: str = None, db: Session = Depends(get_db), current_user = Depends(crud.get_current_user)):
+def read_posts(user_login: str, db: Session = Depends(get_db), current_user = Depends(crud.get_current_user)):
+    print(user_login)
     if user_login != current_user.current_user:
-        raise HTTPException(status_code=400, detail="User_login not found")
+        raise HTTPException(status_code=400, detail="User_login not found!")
     db_user = crud.get_user_by_login(db, login=user_login)
     if not db_user:
         raise HTTPException(status_code=400, detail="User_login not found")

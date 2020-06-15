@@ -1,10 +1,10 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from typing import List
 
 
 class UserCreate(BaseModel):
-    login: str
-    password: str
+    login: str = Field(..., min_length = 2, max_length=30)
+    password: str = Field(..., min_length = 5)
 
 class Token(BaseModel):
     access_token: str
@@ -14,7 +14,7 @@ class TokenData(BaseModel):
     current_user: str = None
 
 class PostCreate(BaseModel):
-    post: str
+    post: str = Field(..., min_length = 1)
 
 class Post(PostCreate):
     id: int
