@@ -1,5 +1,7 @@
-from fastapi import Depends, FastAPI, HTTPException, status
+from fastapi import Depends, FastAPI, HTTPException, status, Query
 from sqlalchemy.orm import Session
+from datetime import datetime, timedelta
+import re
 import pymysql
 pymysql.install_as_MySQLdb()
 from .import crud, models, schemas
@@ -24,12 +26,11 @@ def get_db():
 
 
 
-@app.get("/users/")
+@app.get("/users/", response_model=schemas.UsersList)
 def read_users(limit: int = 100, db: Session = Depends(get_db)):
-    users = crud.get_users(db, limit=limit)
-    return users
+    return crud.get_users(db, limit=limit)
 
-@app.get("/users/me/")
+@app.get("/users/me/", response_model=schemas.TokenData)
 async def read_users_me(current_user = Depends(crud.get_current_user)):
     return current_user
 
@@ -40,34 +41,31 @@ def create_user(user: schemas.UserCreate, db: Session = Depends(get_db)):
         raise HTTPException(status_code=400, detail="Login already registered")
     return crud.create_user(db=db, user=user)
 
-@app.get("/users/{user_login}/last_request/")
+@app.get("/users/{user_login}/last_request/", response_model=schemas.LastRequest)
 def read_posts(user_login: str = None, db: Session = Depends(get_db), current_user = Depends(crud.get_current_user)):
-    if user_login != current_user["current_user"]:
+    if user_login != current_user.current_user:
         raise HTTPException(status_code=400, detail="User_login not found")
     db_user = crud.get_user_by_login(db, login=user_login)
     if not db_user:
         raise HTTPException(status_code=400, detail="User_login not found")
-    request = crud.last_request(db, login=user_login)
-    return request
+    return crud.last_request(db, login=user_login)
 
 
 
-@app.get("/users/posts/")
+@app.get("/users/posts/", response_model=schemas.PostsList)
 def read_posts(limit:int = 100, db: Session = Depends(get_db)):
-    posts = crud.get_posts(db, limit=limit)
-    return posts
+    return crud.get_posts(db, limit=limit)
 
-@app.get("/users/{user_login}/posts/")
+@app.get("/users/{user_login}/posts/", response_model=schemas.PostsList)
 def read_posts(user_login: str = None, limit:int = 100, db: Session = Depends(get_db)):
     db_user = crud.get_user_by_login(db, login=user_login)
     if not db_user:
         raise HTTPException(status_code=400, detail="User_login not found")
-    posts = crud.get_certain_posts(db, login=user_login, limit=limit)
-    return posts
+    return crud.get_certain_posts(db, login=user_login, limit=limit)
 
-@app.post("/users/{user_login}/posts/create/", response_model=schemas.NewPostCreated)
+@app.post("/users/{user_login}/posts/create/", response_model=schemas.PostCreate)
 def create_post(user_login: str = None, current_user = Depends(crud.get_current_user), post: schemas.PostCreate = None, db: Session = Depends(get_db)):
-    if user_login != current_user["current_user"]:
+    if user_login != current_user.current_user:
         raise HTTPException(status_code=400, detail="User_login not found")
     db_user = crud.get_user_by_login(db, user_login)
     if not db_user:
@@ -78,7 +76,7 @@ def create_post(user_login: str = None, current_user = Depends(crud.get_current_
 
 @app.post("/users/{user_login}/likes/", response_model=schemas.Like)
 def like(user_login: str, post_id: int, db: Session = Depends(get_db), current_user = Depends(crud.get_current_user)):
-    if user_login != current_user["current_user"]:
+    if user_login != current_user.current_user:
         raise HTTPException(status_code=400, detail="User_login not found")
     db_user = crud.get_user_by_login(db, user_login)
     if not db_user:
@@ -93,7 +91,7 @@ def like(user_login: str, post_id: int, db: Session = Depends(get_db), current_u
 
 @app.delete("/users/{user_login}/unlikes/", response_model=schemas.Like)
 def unlike(user_login: str, post_id: int, db: Session = Depends(get_db), current_user = Depends(crud.get_current_user)):
-    if user_login != current_user["current_user"]:
+    if user_login != current_user.current_user:
         raise HTTPException(status_code=400, detail="User_login not found")
     db_user = crud.get_user_by_login(db, user_login)
     if not db_user:
@@ -106,7 +104,7 @@ def unlike(user_login: str, post_id: int, db: Session = Depends(get_db), current
     except:
         raise HTTPException(status_code=409, detail="Probably user still unlike this post")
 
-@app.get("/likes_info/")
+@app.get("/likes_info/", response_model=schemas.LikeList)
 def likes_info(post_id: int, db: Session = Depends(get_db), date_from: str = "2000-12-31", date_to: str = "2020-12-12"):
     db_post = crud.get_post_by_id(db, post_id)
     if not db_post:

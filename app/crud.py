@@ -4,7 +4,7 @@ from . import models, schemas
 from datetime import datetime, timedelta
 import jwt
 from jwt import PyJWTError
-from fastapi import Depends, HTTPException
+from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
 
 
@@ -17,7 +17,11 @@ oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/token")
 
 
 def get_users(db: Session, limit: int = 100):
-    return db.query(models.User.login).limit(limit).all()
+    users_lists = db.query(models.User.login).limit(limit).all()
+    users_list = []
+    for i in users_lists:
+        users_list.append(i[0])
+    return schemas.UsersList(all_users_list=users_list)
 
 def get_current_user(token: str = Depends(oauth2_scheme)):
     credentials_exception = HTTPException(
@@ -26,15 +30,13 @@ def get_current_user(token: str = Depends(oauth2_scheme)):
         headers={"WWW-Authenticate": "Bearer"},
     )
     try:
-        print(token)
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-        print(payload)
         username: str = payload.get("sub")
         if username is None:
             raise credentials_exception
     except PyJWTError:
         raise credentials_exception
-    return {"current_user" : username}
+    return schemas.TokenData(current_user = username)
 
 def create_user(db: Session, user: schemas.UserCreate):
     hashed_password = get_password_hash(user.password)
@@ -48,29 +50,41 @@ def last_request(db: Session, login: str):
     last_like = db.query(models.Love.post_id, models.Love.loved).filter(models.Love.lover == login).order_by(models.Love.date_time).all()[slice(-1, None)][0]
     last_like_post_id = last_like[0]
     last_like_post_owner = last_like[1]
+
     last_post = db.query(models.Post.id, models.Post.post).filter(models.Post.login == login).order_by(models.Post.date_time).all()[slice(-1, None)][0]
     last_post_post_id = last_post[0]
     last_post_post_body = last_post[1]
+
     last_request = db.query(models.Login.date_time).filter(models.Login.login == login).order_by(models.Login.date_time).all()[slice(-1, None)][0]
     last_login_date_time = str(last_request[0])
-    return {"last_like" : schemas.LastLike(post_id=last_like_post_id, post_owner=last_like_post_owner),
-            "last_post" : schemas.LastPost(post_id=last_post_post_id, post_body=last_post_post_body),
-            "last_login": schemas.LastLogin(login=login, date_time=last_login_date_time)}
+
+    last_like = schemas.LastLike(post_id=last_like_post_id, post_owner=last_like_post_owner)
+    last_post = schemas.LastPost(post_id=last_post_post_id, post_body=last_post_post_body)
+    last_login = schemas.LastLogin(login=login, date_time=last_login_date_time)
+    return schemas.LastRequest(last_like=last_like, last_post=last_post, last_login=last_login)
 
 
 
 def get_posts(db: Session, limit: int = 100):
-    return db.query(models.Post.id, models.Post.post, models.Post.date_time).limit(limit).all()
+    posts_lists = db.query(models.Post.id, models.Post.post, models.Post.date_time).limit(limit).all()
+    posts_list = []
+    for i in posts_lists:
+        posts_list.append(schemas.Post(id=i[0], post=i[1], date_time=str(i[2])))
+    return schemas.PostsList(all_posts_list=posts_list)
 
 def get_certain_posts(db: Session, login: str, limit: int = 100):
-    return db.query(models.Post.id, models.Post.post, models.Post.date_time).filter(models.Post.login == login).limit(limit).all()
+    posts_lists = db.query(models.Post.id, models.Post.post, models.Post.date_time).filter(models.Post.login == login).limit(limit).all()
+    posts_list = []
+    for i in posts_lists:
+        posts_list.append(schemas.Post(id=i[0], post=i[1], date_time=str(i[2])))
+    return schemas.PostsList(all_posts_list=posts_list)
 
 def create_post(db: Session, user_login: str, post: schemas.PostCreate):
     db_post = models.Post(login=user_login, post = post.post)
     db.add(db_post)
     db.commit()
     db.refresh(db_post)
-    return schemas.NewPostCreated(login = user_login, post = post.post)
+    return schemas.PostCreate(post = post.post)
 
 
 
@@ -94,9 +108,12 @@ def unlike(db: Session, user_login:str, post_id: int):
 def likes_info(post_id: int, db: Session, date_from: str, date_to:str):
     date_from = datetime.strptime(date_from,'%Y-%m-%d')
     date_to = datetime.strptime(date_to,'%Y-%m-%d')
-    likes = db.query(models.Love.lover).filter(models.Love.post_id == post_id).filter(models.Love.date_time<date_to).filter(models.Love.date_time>date_from).all()
-    return {"number_of_likes":len(likes),
-            "made_by":likes}
+    likes_lists = db.query(models.Love.lover).filter(models.Love.post_id == post_id).filter(models.Love.date_time<date_to).filter(models.Love.date_time>date_from).all()
+    likes = []
+    for i in likes_lists:
+        likes.append(i[0])
+    return schemas.LikeList(number_of_likes=len(likes),made_by=likes)
+
 
 
 
