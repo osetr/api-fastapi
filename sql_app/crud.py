@@ -71,7 +71,11 @@ def authenticate_user(db: Session, login: str, password: str):
     return user
 
 
-def create_access_token(data: dict, expires_delta: timedelta = None):
+def create_access_token(db: Session, data: dict, expires_delta: timedelta = None):
+    db_post = models.Login(login=data["sub"])
+    db.add(db_post)
+    db.commit()
+    db.refresh(db_post)
     to_encode = data.copy()
     if expires_delta:
         expire = datetime.utcnow() + expires_delta
@@ -85,7 +89,10 @@ def create_access_token(data: dict, expires_delta: timedelta = None):
 def likes_info(post_id: int, db: Session, date_from: str, date_to:str):
     date_from = datetime.strptime(date_from,'%Y-%m-%d')
     date_to = datetime.strptime(date_to,'%Y-%m-%d')
-    return db.query(models.Love.lover).filter(models.Love.post_id == post_id).filter(models.Love.date_time<date_to).filter(models.Love.date_time>date_from).all()
+    likes = db.query(models.Love.lover).filter(models.Love.post_id == post_id).filter(models.Love.date_time<date_to).filter(models.Love.date_time>date_from).all()
+    return {"number_of_likes":len(likes),
+            "made_by":likes}
+
 
 def last_request(db: Session, login: str):
     last_like = db.query(models.Love.post_id, models.Love.loved).filter(models.Love.lover == login).order_by(models.Love.date_time).all()[slice(-1, None)][0]
@@ -94,8 +101,11 @@ def last_request(db: Session, login: str):
     last_post = db.query(models.Post.id, models.Post.post).filter(models.Post.login == login).order_by(models.Post.date_time).all()[slice(-1, None)][0]
     last_post_post_id = last_post[0]
     last_post_post_body = last_post[1]
+    last_request = db.query(models.Login.date_time).filter(models.Login.login == login).order_by(models.Login.date_time).all()[slice(-1, None)][0]
+    last_login_date_time = str(last_request[0])
     return {"last_like" : schemas.LastLike(post_id=last_like_post_id, post_owner=last_like_post_owner),
-            "last_post" : schemas.LastPost(post_id=last_post_post_id, post_body=last_post_post_body)}
+            "last_post" : schemas.LastPost(post_id=last_post_post_id, post_body=last_post_post_body),
+            "last_login": schemas.LastLogin(login=login, date_time=last_login_date_time)}
 
 def verify_password(plain_password, hashed_password):
     return pwd_context.verify(plain_password, hashed_password)

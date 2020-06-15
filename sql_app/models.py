@@ -31,3 +31,11 @@ class Love(Base):
     loved = Column(String(30))
     post_id = Column(Integer, primary_key = True)
     date_time = Column(DateTime, default=datetime.utcnow)
+
+
+class Login(Base):
+    __tablename__ = "Login"
+
+
+    login = Column(String(30), primary_key = True)
+    date_time = Column(DateTime, default=datetime.utcnow)

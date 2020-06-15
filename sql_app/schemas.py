@@ -33,3 +33,7 @@ class LastLike(BaseModel):
 class LastPost(BaseModel):
     post_id: int
     post_body: str
+
+class LastLogin(BaseModel):
+    login: str
+    date_time: str
