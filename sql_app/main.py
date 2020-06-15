@@ -1,30 +1,20 @@
-from typing import List
-
 from fastapi import Depends, FastAPI, HTTPException, status
 from sqlalchemy.orm import Session
-from datetime import datetime
 import pymysql
-import re
 pymysql.install_as_MySQLdb()
-
 from .import crud, models, schemas
 from .database import SessionLocal, engine
-
-import jwt
-from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
-from jwt import PyJWTError
-from pydantic import BaseModel
-from datetime import datetime, timedelta
+from fastapi.security import OAuth2PasswordRequestForm
 
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 30
 
 models.Base.metadata.create_all(bind=engine)
 
+
 app = FastAPI()
 
 
-# Dependency
 def get_db():
     db = SessionLocal()
     try:
@@ -39,12 +29,26 @@ def read_users(limit: int = 100, db: Session = Depends(get_db)):
     users = crud.get_users(db, limit=limit)
     return users
 
+@app.get("/users/me/")
+async def read_users_me(current_user = Depends(crud.get_current_user)):
+    return current_user
+
 @app.post("/users/new_user", response_model=schemas.UserCreate)
 def create_user(user: schemas.UserCreate, db: Session = Depends(get_db)):
     db_user = crud.get_user_by_login(db, login=user.login)
     if db_user:
         raise HTTPException(status_code=400, detail="Login already registered")
     return crud.create_user(db=db, user=user)
+
+@app.get("/users/{user_login}/last_request/")
+def read_posts(user_login: str = None, db: Session = Depends(get_db), current_user = Depends(crud.get_current_user)):
+    if user_login != current_user["current_user"]:
+        raise HTTPException(status_code=400, detail="User_login not found")
+    db_user = crud.get_user_by_login(db, login=user_login)
+    if not db_user:
+        raise HTTPException(status_code=400, detail="User_login not found")
+    request = crud.last_request(db, login=user_login)
+    return request
 
 
 
@@ -112,16 +116,6 @@ def likes_info(post_id: int, db: Session = Depends(get_db), date_from: str = "20
     return crud.likes_info(post_id=post_id, db=db, date_from=date_from, date_to=date_to)
 
 
-@app.get("/users/{user_login}/last_request/")
-def read_posts(user_login: str = None, db: Session = Depends(get_db), current_user = Depends(crud.get_current_user)):
-    if user_login != current_user["current_user"]:
-        raise HTTPException(status_code=400, detail="User_login not found")
-    db_user = crud.get_user_by_login(db, login=user_login)
-    if not db_user:
-        raise HTTPException(status_code=400, detail="User_login not found")
-    request = crud.last_request(db, login=user_login)
-    return request
-
 
 @app.post("/token", response_model=schemas.Token)
 async def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)):
@@ -137,7 +131,3 @@ async def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends(
         data={"sub": user.login}, expires_delta=access_token_expires
     )
     return schemas.Token(access_token = access_token, token_type = "bearer")
-
-@app.get("/users/me/")
-async def read_users_me(current_user = Depends(crud.get_current_user)):
-    return current_user

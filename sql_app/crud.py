@@ -4,31 +4,37 @@ from . import models, schemas
 from datetime import datetime, timedelta
 import jwt
 from jwt import PyJWTError
-from fastapi import Depends, FastAPI, HTTPException, status
+from fastapi import Depends, HTTPException
+from fastapi.security import OAuth2PasswordBearer
+
+
+
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 SECRET_KEY = "ffd3fccf1ab4cf54495121526f473be5ff49fb32873d664962da7eca3d111ce5"
 ALGORITHM = "HS256"
-from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
-def get_password_hash(password: str) -> str:
-    return pwd_context.hash(password)
-
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/token")
 
 
-def get_user_by_login(db: Session, login: str):
-    return db.query(models.User).filter(models.User.login == login).first()
-
-def get_post_by_id(db: Session, post_id: int):
-    return db.query(models.Post).filter(models.Post.id == post_id).first()
 
 def get_users(db: Session, limit: int = 100):
     return db.query(models.User.login).limit(limit).all()
 
-def get_certain_posts(db: Session, login: str, limit: int = 100):
-    return db.query(models.Post.id, models.Post.post, models.Post.date_time).filter(models.Post.login == login).limit(limit).all()
-
-def get_posts(db: Session, limit: int = 100):
-    return db.query(models.Post.id, models.Post.post, models.Post.date_time).limit(limit).all()
+def get_current_user(token: str = Depends(oauth2_scheme)):
+    credentials_exception = HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail="Could not validate credentials",
+        headers={"WWW-Authenticate": "Bearer"},
+    )
+    try:
+        print(token)
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        print(payload)
+        username: str = payload.get("sub")
+        if username is None:
+            raise credentials_exception
+    except PyJWTError:
+        raise credentials_exception
+    return {"current_user" : username}
 
 def create_user(db: Session, user: schemas.UserCreate):
     hashed_password = get_password_hash(user.password)
@@ -38,12 +44,35 @@ def create_user(db: Session, user: schemas.UserCreate):
     db.refresh(db_user)
     return schemas.UserCreate(login = user.login, password = hashed_password)
 
+def last_request(db: Session, login: str):
+    last_like = db.query(models.Love.post_id, models.Love.loved).filter(models.Love.lover == login).order_by(models.Love.date_time).all()[slice(-1, None)][0]
+    last_like_post_id = last_like[0]
+    last_like_post_owner = last_like[1]
+    last_post = db.query(models.Post.id, models.Post.post).filter(models.Post.login == login).order_by(models.Post.date_time).all()[slice(-1, None)][0]
+    last_post_post_id = last_post[0]
+    last_post_post_body = last_post[1]
+    last_request = db.query(models.Login.date_time).filter(models.Login.login == login).order_by(models.Login.date_time).all()[slice(-1, None)][0]
+    last_login_date_time = str(last_request[0])
+    return {"last_like" : schemas.LastLike(post_id=last_like_post_id, post_owner=last_like_post_owner),
+            "last_post" : schemas.LastPost(post_id=last_post_post_id, post_body=last_post_post_body),
+            "last_login": schemas.LastLogin(login=login, date_time=last_login_date_time)}
+
+
+
+def get_posts(db: Session, limit: int = 100):
+    return db.query(models.Post.id, models.Post.post, models.Post.date_time).limit(limit).all()
+
+def get_certain_posts(db: Session, login: str, limit: int = 100):
+    return db.query(models.Post.id, models.Post.post, models.Post.date_time).filter(models.Post.login == login).limit(limit).all()
+
 def create_post(db: Session, user_login: str, post: schemas.PostCreate):
     db_post = models.Post(login=user_login, post = post.post)
     db.add(db_post)
     db.commit()
     db.refresh(db_post)
     return schemas.NewPostCreated(login = user_login, post = post.post)
+
+
 
 def like(db: Session, user_login:str, post_id: int):
     loved = db.query(models.Post.login).filter(models.Post.id == post_id).limit(1).all()
@@ -62,6 +91,27 @@ def unlike(db: Session, user_login:str, post_id: int):
     db.commit()
     return schemas.Like(lover = user_login, loved = loved, post_id = post_id)
 
+def likes_info(post_id: int, db: Session, date_from: str, date_to:str):
+    date_from = datetime.strptime(date_from,'%Y-%m-%d')
+    date_to = datetime.strptime(date_to,'%Y-%m-%d')
+    likes = db.query(models.Love.lover).filter(models.Love.post_id == post_id).filter(models.Love.date_time<date_to).filter(models.Love.date_time>date_from).all()
+    return {"number_of_likes":len(likes),
+            "made_by":likes}
+
+
+
+def get_password_hash(password: str) -> str:
+    return pwd_context.hash(password)
+
+def verify_password(plain_password, hashed_password):
+    return pwd_context.verify(plain_password, hashed_password)
+
+def get_user_by_login(db: Session, login: str):
+    return db.query(models.User).filter(models.User.login == login).first()
+
+def get_post_by_id(db: Session, post_id: int):
+    return db.query(models.Post).filter(models.Post.id == post_id).first()
+
 def authenticate_user(db: Session, login: str, password: str):
     user = get_user_by_login(db, login)
     if not user:
@@ -69,7 +119,6 @@ def authenticate_user(db: Session, login: str, password: str):
     if not verify_password(password, user.hashed_password):
         return False
     return user
-
 
 def create_access_token(db: Session, data: dict, expires_delta: timedelta = None):
     db_post = models.Login(login=data["sub"])
@@ -84,45 +133,3 @@ def create_access_token(db: Session, data: dict, expires_delta: timedelta = None
     to_encode.update({"exp": expire})
     encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
     return encoded_jwt
-
-
-def likes_info(post_id: int, db: Session, date_from: str, date_to:str):
-    date_from = datetime.strptime(date_from,'%Y-%m-%d')
-    date_to = datetime.strptime(date_to,'%Y-%m-%d')
-    likes = db.query(models.Love.lover).filter(models.Love.post_id == post_id).filter(models.Love.date_time<date_to).filter(models.Love.date_time>date_from).all()
-    return {"number_of_likes":len(likes),
-            "made_by":likes}
-
-
-def last_request(db: Session, login: str):
-    last_like = db.query(models.Love.post_id, models.Love.loved).filter(models.Love.lover == login).order_by(models.Love.date_time).all()[slice(-1, None)][0]
-    last_like_post_id = last_like[0]
-    last_like_post_owner = last_like[1]
-    last_post = db.query(models.Post.id, models.Post.post).filter(models.Post.login == login).order_by(models.Post.date_time).all()[slice(-1, None)][0]
-    last_post_post_id = last_post[0]
-    last_post_post_body = last_post[1]
-    last_request = db.query(models.Login.date_time).filter(models.Login.login == login).order_by(models.Login.date_time).all()[slice(-1, None)][0]
-    last_login_date_time = str(last_request[0])
-    return {"last_like" : schemas.LastLike(post_id=last_like_post_id, post_owner=last_like_post_owner),
-            "last_post" : schemas.LastPost(post_id=last_post_post_id, post_body=last_post_post_body),
-            "last_login": schemas.LastLogin(login=login, date_time=last_login_date_time)}
-
-def verify_password(plain_password, hashed_password):
-    return pwd_context.verify(plain_password, hashed_password)
-
-def get_current_user(token: str = Depends(oauth2_scheme)):
-    credentials_exception = HTTPException(
-        status_code=status.HTTP_401_UNAUTHORIZED,
-        detail="Could not validate credentials",
-        headers={"WWW-Authenticate": "Bearer"},
-    )
-    try:
-        print(token)
-        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-        print(payload)
-        username: str = payload.get("sub")
-        if username is None:
-            raise credentials_exception
-    except PyJWTError:
-        raise credentials_exception
-    return {"current_user" : username}
