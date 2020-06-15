@@ -1,5 +1,5 @@
-CREATE DATABASE ad;
-USE ad;
+CREATE DATABASE app;
+USE app;
 
 CREATE TABLE User(
 login VARCHAR(30),

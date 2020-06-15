@@ -29,16 +29,16 @@ class Like(BaseModel):
     post_id: int
 
 class LikeList(BaseModel):
-    number_of_likes: int
-    made_by: List[str]
+    number_of_likes: int = None
+    made_by: List[str] = None
 
 class LastLike(BaseModel):
-    post_id: int
-    post_owner: str
+    post_id: int = None
+    post_owner: str = None
 
 class LastPost(BaseModel):
-    post_id: int
-    post_body: str
+    post_id: int = None
+    post_body: str = None
 
 class LastLogin(BaseModel):
     login: str

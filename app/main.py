@@ -45,7 +45,6 @@ def create_user(user: schemas.UserCreate, db: Session = Depends(get_db)):
 
 @app.get("/users/{user_login}/last_request/", response_model=schemas.LastRequest)
 def read_posts(user_login: str, db: Session = Depends(get_db), current_user = Depends(crud.get_current_user)):
-    print(user_login)
     if user_login != current_user.current_user:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
