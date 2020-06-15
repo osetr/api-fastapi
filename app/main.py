@@ -4,12 +4,11 @@ from datetime import datetime, timedelta
 import re
 import pymysql
 pymysql.install_as_MySQLdb()
-from .import crud, models, schemas
+from .import crud, models, schemas, settings
 from .database import SessionLocal, engine
 from fastapi.security import OAuth2PasswordRequestForm
 
-ALGORITHM = "HS256"
-ACCESS_TOKEN_EXPIRE_MINUTES = 30
+ACCESS_TOKEN_EXPIRE_MINUTES = int(settings.ACCESS_TOKEN_EXPIRE_MINUTES)
 
 models.Base.metadata.create_all(bind=engine)
 
@@ -76,7 +75,7 @@ def read_posts(user_login: str = None, limit:int = 100, db: Session = Depends(ge
         )
     return crud.get_certain_posts(db, login=user_login, limit=limit)
 
-@app.post("/users/{user_login}/posts/create/", response_model=schemas.PostCreate)
+@app.post("/users/{user_login}/posts/create/", response_model=schemas.PostCreate, status_code=status.HTTP_201_CREATED)
 def create_post(user_login: str = None, current_user = Depends(crud.get_current_user), post: schemas.PostCreate = None, db: Session = Depends(get_db)):
     if user_login != current_user.current_user:
         raise HTTPException(
