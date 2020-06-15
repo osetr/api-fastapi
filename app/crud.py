@@ -55,6 +55,7 @@ def last_request(db: Session, login: str):
         last_like = last_like[slice(-1, None)][0]
         last_like_post_id = last_like[0]
         last_like_post_owner = last_like[1]
+        last_like = schemas.LastLike(post_id=last_like_post_id, post_owner=last_like_post_owner)
 
     last_post = db.query(models.Post.id, models.Post.post).filter(models.Post.login == login).order_by(models.Post.date_time).all()
     if not last_post:
@@ -63,12 +64,12 @@ def last_request(db: Session, login: str):
         last_post = last_post[slice(-1, None)][0]
         last_post_post_id = last_post[0]
         last_post_post_body = last_post[1]
+        last_post = schemas.LastPost(post_id=last_post_post_id, post_body=last_post_post_body)
 
     last_login = db.query(models.Login.date_time).filter(models.Login.login == login).order_by(models.Login.date_time).all()[slice(-1, None)][0]
     last_login_date_time = str(last_login[0])
     last_login = schemas.LastLogin(login=login, date_time=last_login_date_time)
 
-    
     return schemas.LastRequest(last_like=last_like, last_post=last_post, last_login=last_login)
 
 
