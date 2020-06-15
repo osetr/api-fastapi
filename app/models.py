@@ -38,4 +38,4 @@ class Login(Base):
 
 
     login = Column(String(30), primary_key = True)
-    date_time = Column(DateTime, default=datetime.utcnow, primary_key = True)
+    date_time = Column(DateTime, default=datetime.utcnow)

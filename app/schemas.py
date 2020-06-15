@@ -11,11 +11,15 @@ class Token(BaseModel):
     access_token: str
     token_type: str
 
+class TokenData(BaseModel):
+    username: str = None
+
 class PostCreate(BaseModel):
     post: str
 
 class NewPostCreated(PostCreate):
     login: str
+
 
 class Like(BaseModel):
     lover: str
