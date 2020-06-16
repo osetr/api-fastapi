@@ -10,8 +10,8 @@ services:
                 restart: always
                 environment:
                         MYSQL_DATABASE: 'app'
-                        MYSQL_ROOT_PASSWORD: 'uawesome120300'
-                        MYSQL_USER: 'root'
+                        MYSQL_USER: ${DB_USER}
+                        MYSQL_PASSWORD: ${DB_PASS}
                 ports:
                         - 3306:3306
                 expose:
