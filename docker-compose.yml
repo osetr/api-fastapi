@@ -3,7 +3,9 @@ version: "3"
 services:
         server_fast_api:
                 build: .
+                restart: always
                 command: bash -c "source venv/bin/activate; uvicorn app.main:app --reload"
                 ports:
                         - 8000:8000
                 network_mode: host
+        

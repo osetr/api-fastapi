@@ -1,0 +1,15 @@
+version: "3"
+
+services:
+        mysql_db:
+                build: .
+                command: --default-authentication-plugin=mysql_native_password
+                restart: always
+                environment:
+                        MYSQL_DATABASE: 'app'
+                        MYSQL_ROOT_PASSWORD: 'uawesome120300'
+                        MYSQL_USER: 'root'
+                ports:
+                        - 3306:3306
+                expose:
+                        - '3306'
