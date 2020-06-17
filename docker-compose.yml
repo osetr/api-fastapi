@@ -1,9 +1,5 @@
 version: "3"    
 
-volumes:
-        mysql_db_data_container:
-
-
 services:
         server_fast_api:
                 build: .
@@ -11,23 +7,4 @@ services:
                 command: bash -c "source venv/bin/activate; uvicorn app.main:app --reload"
                 ports:
                         - 8000:8000
-                network_mode: host
-                depends_on: 
-                        - mysql_db
-
-        mysql_db:
-                build: database/.
-                command: --default-authentication-plugin=mysql_native_password
-                restart: always
-                environment:
-                        MYSQL_DATABASE: 'app'
-                        MYSQL_ROOT_PASSWORD: ${DB_PASS}
-                ports:
-                        - 3306:3306
-                expose:
-                        - '3306'
-                volumes:
-                        - 'mysql_db_data_container:/var/lib/mysql'  
-                healthcheck:
-                        timeout: 10s 
-    
+                network_mode: host    
