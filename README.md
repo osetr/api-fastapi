@@ -5,7 +5,7 @@ It is an implementation of REST API application, written using fastapi. It imple
 
 After cloning this repository locally, be sure to add yourself two .env files with important keys for the database and for the api server itself. In the following formats:
 
-* database(into database file):
+* database(into database directory):
   * DB_PASS = 'password'
 * fastapi_server(into current repo directory):
   * ALGORITHM = 'HS256'
