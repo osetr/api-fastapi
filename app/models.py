@@ -1,6 +1,6 @@
 from sqlalchemy import Column, Integer, String, Text, DateTime
 from datetime import datetime
-from .database import Base
+from database import Base
 
 
 class User(Base):
@@ -31,5 +31,5 @@ class Love(Base):
 class Login(Base):
     __tablename__ = "Login"
 
-    login = Column(String(30), primary_keY=True)
+    login = Column(String(30), primary_key=True)
     date_time = Column(DateTime, default=datetime.utcnow)

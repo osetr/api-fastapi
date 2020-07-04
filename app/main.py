@@ -2,11 +2,9 @@ from fastapi import Depends, FastAPI, HTTPException, status
 from sqlalchemy.orm import Session
 from datetime import datetime, timedelta
 import re
-import pymysql
-from .import crud, models, schemas, settings
-from .database import SessionLocal, engine
+import crud, models, schemas, settings
+from database import SessionLocal, engine
 from fastapi.security import OAuth2PasswordRequestForm
-pymysql.install_as_MySQLdb()
 
 
 ACCESS_TOKEN_EXPIRE_MINUTES = int(settings.ACCESS_TOKEN_EXPIRE_MINUTES)
@@ -25,6 +23,7 @@ def get_db():
         db.close()
 
 
+# user related
 @app.get("/users/", response_model=schemas.UsersList)
 def read_users(limit: int=100, db: Session=Depends(get_db)):
     return crud.get_users(db, limit=limit)
@@ -49,6 +48,7 @@ def create_user(user: schemas.UserCreate,
     return crud.create_user(db=db, user=user)
 
 
+# post related
 @app.get("/users/{user_login}/last_request/",
          response_model=schemas.LastRequest)
 def read_posts(user_login: str,
@@ -110,6 +110,7 @@ def create_post(user_login: str=None,
     return crud.create_post(db=db, post=post, user_login=user_login)
 
 
+# like related
 @app.post("/users/{user_login}/likes/", response_model=schemas.Like)
 def like(user_login: str,
          post_id: int,
@@ -198,6 +199,7 @@ def likes_info(post_id: int,
                            date_to=date_to)
 
 
+# token
 @app.post("/token", response_model=schemas.Token)
 async def login_for_access_token(
                 form_data: OAuth2PasswordRequestForm=Depends(),
