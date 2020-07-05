@@ -7,7 +7,7 @@ pymysql.install_as_MySQLdb()
 
 SQLALCHEMY_DATABASE_URL = (
                             "mysql://root:" +
-                            settings.DB_PASS +
+                            str(settings.DB_PASS) +
                             "@127.0.0.1:3306/app"
                           )
 

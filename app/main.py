@@ -2,6 +2,7 @@ from fastapi import Depends, FastAPI, HTTPException, status
 from sqlalchemy.orm import Session
 from datetime import datetime, timedelta
 import re
+import os
 import crud, models, schemas, settings
 from database import SessionLocal, engine
 from fastapi.security import OAuth2PasswordRequestForm
@@ -9,8 +10,12 @@ from fastapi.security import OAuth2PasswordRequestForm
 
 ACCESS_TOKEN_EXPIRE_MINUTES = int(settings.ACCESS_TOKEN_EXPIRE_MINUTES)
 
-models.Base.metadata.create_all(bind=engine)
-
+try:
+    models.Base.metadata.create_all(bind=engine)
+except:
+    os.system("kill 1")
+    os.system("echo 'ERROR: DB is not ready!!!'")
+    raise SystemExit(1)
 
 app = FastAPI()
 
