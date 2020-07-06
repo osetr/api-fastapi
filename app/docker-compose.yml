@@ -20,11 +20,9 @@ services:
                         - 'mysql_db_data_container:/var/lib/mysql'
 
         server_fast_api:
-                build: ./app
+                build: .
                 restart: always
                 ports:
                         - 8000:8000
                 network_mode: host
-                depends_on:
-                        - mysql_db 
                 entrypoint: bash -c "uvicorn main:app --reload"
